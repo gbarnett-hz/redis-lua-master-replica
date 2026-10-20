@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Master on 7000, replica on 7001. Sends an EVAL to the master, then shows:
-#   1. raw RESP replication stream the master ships to replicas (stream.py)
+#   1. replication stream the master ships to replicas (redis-cli --replica)
 #   2. what the real replica executes (MONITOR on the replica)
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -14,7 +14,7 @@ until [ "$(redis-cli -p $R info replication | tr -d '\r' | grep master_link_stat
 
 redis-cli -p $M set counter 10 >/dev/null   # seed data before observers attach
 
-python3 stream.py $M > "$D/stream.txt" &
+redis-cli -p $M --replica 2>/dev/null > "$D/stream.txt" &
 redis-cli -p $R monitor > "$D/monitor.txt" &
 sleep 0.5
 
@@ -29,5 +29,5 @@ redis-cli -p $M eval '
 ' 3 counter hits log 5
 
 sleep 1
-echo; echo "== raw RESP sent master -> replica"; cat "$D/stream.txt"
+echo; echo "== replication stream master -> replica"; cat "$D/stream.txt"
 echo; echo "== replica MONITOR";                 cat "$D/monitor.txt"
